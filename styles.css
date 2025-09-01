@@ -1,0 +1,94 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, system-ui, sans-serif;
+  background: #000;
+  color: #fff;
+}
+
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+h1 {
+  font-size: 22px;
+  margin: 8px 0 12px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.tab {
+  flex: 1;
+  padding: 10px;
+  background: #222;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 700;
+  color: #fff;
+  border: none;
+}
+.tab.active {
+  background: #111;
+  outline: 2px solid #555;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  background: #1a1a1a;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.btn {
+  background: #7c3aed;
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.btn.secondary {
+  background: #0d47a1;
+}
+.btn.danger {
+  background: #b00020;
+}
+
+.card {
+  background: #111;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.muted {
+  color: #aaa;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.hidden {
+  display: none;
+}
