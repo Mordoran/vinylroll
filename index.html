@@ -10,7 +10,12 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>VinylRoll</h1>
+    <header class="header">
+      <h1>VinylRoll</h1>
+      <div class="header-actions">
+        <button id="fetchAllBtn" class="btn ghost small">Chercher toutes les jaquettes</button>
+      </div>
+    </header>
 
     <div class="tabs">
       <button class="tab active" data-tab="library">Bibliothèque</button>
@@ -19,7 +24,7 @@
       <button class="tab" data-tab="random">Random</button>
     </div>
 
-    <!-- Contrôles de recherche + tri -->
+    <!-- Barre recherche + tri (cachée en Ajouter et Random) -->
     <div id="controls">
       <input id="search" placeholder="Recherche artiste, album, note...">
       <div class="sorts">
@@ -43,7 +48,7 @@
       </div>
     </div>
 
-    <!-- Section ajout -->
+    <!-- Onglet Ajouter -->
     <div id="add" class="hidden">
       <div class="card">
         <label>Artiste</label>
@@ -90,10 +95,10 @@
       </div>
     </div>
 
-    <!-- Section listes -->
+    <!-- Liste (Bibliothèque / Wishlist) -->
     <div id="list"></div>
 
-    <!-- Section random -->
+    <!-- Onglet Random -->
     <div id="random" class="hidden">
       <button id="randomBtn" class="btn secondary">Choisir un vinyle au hasard</button>
       <div id="pick" class="card"></div>
