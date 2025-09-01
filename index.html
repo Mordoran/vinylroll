@@ -106,58 +106,62 @@
     </div>
   </div>
 
-  <!-- Modale d'édition -->
-  <dialog id="editDialog">
-    <form method="dialog" class="edit-form">
-      <h2>Modifier le vinyle</h2>
+  <!-- Modale custom (plus fiable que <dialog> sur iOS) -->
+  <div id="editModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <form class="edit-form" autocomplete="off">
+        <h2 id="editTitle">Modifier le vinyle</h2>
 
-      <div class="edit-grid">
-        <div>
-          <label>Artiste</label>
-          <input id="editArtist" list="artistsList">
+        <div class="edit-grid">
+          <div>
+            <label>Artiste</label>
+            <input id="editArtist" list="artistsList">
+          </div>
+          <div>
+            <label>Album</label>
+            <input id="editAlbum">
+          </div>
+          <div>
+            <label>Année</label>
+            <input id="editYear" inputmode="numeric" placeholder="1996">
+          </div>
+          <div>
+            <label>État</label>
+            <select id="editState">
+              <option value="owned">owned</option>
+              <option value="preorder">preorder</option>
+              <option value="wishlist">wishlist</option>
+            </select>
+          </div>
+          <div>
+            <label>Type</label>
+            <select id="editType">
+              <option value="standard">standard</option>
+              <option value="limited">limited</option>
+            </select>
+          </div>
+          <div id="editLimitedWrap">
+            <label>Détail édition limitée</label>
+            <input id="editLimitedDetail" placeholder="Marble Red 180g #/500">
+          </div>
+          <div class="full">
+            <label>Commentaire</label>
+            <textarea id="editComment" rows="2"></textarea>
+          </div>
         </div>
-        <div>
-          <label>Album</label>
-          <input id="editAlbum">
-        </div>
-        <div>
-          <label>Année</label>
-          <input id="editYear" inputmode="numeric" placeholder="1996">
-        </div>
-        <div>
-          <label>État</label>
-          <select id="editState">
-            <option value="owned">owned</option>
-            <option value="preorder">preorder</option>
-            <option value="wishlist">wishlist</option>
-          </select>
-        </div>
-        <div>
-          <label>Type</label>
-          <select id="editType">
-            <option value="standard">standard</option>
-            <option value="limited">limited</option>
-          </select>
-        </div>
-        <div id="editLimitedWrap">
-          <label>Détail édition limitée</label>
-          <input id="editLimitedDetail" placeholder="Marble Red 180g #/500">
-        </div>
-        <div class="full">
-          <label>Commentaire</label>
-          <textarea id="editComment" rows="2"></textarea>
-        </div>
-      </div>
 
-      <div class="dialog-actions">
-        <button type="button" id="editCoverBtn" class="btn ghost small">Chercher jaquette</button>
-        <button type="button" id="deleteBtn" class="btn danger small">Supprimer</button>
-        <div class="spacer"></div>
-        <button value="cancel" class="btn ghost small">Annuler</button>
-        <button id="saveBtn" value="default" class="btn small">Enregistrer</button>
-      </div>
-    </form>
-  </dialog>
+        <div class="dialog-actions">
+          <button type="button" id="editCoverBtn" class="btn ghost small">Chercher jaquette</button>
+          <button type="button" id="genCoverBtn" class="btn ghost small">Générer une jaquette</button>
+          <button type="button" id="deleteBtn" class="btn danger small">Supprimer</button>
+          <div class="spacer"></div>
+          <button type="button" id="cancelBtn" class="btn ghost small">Annuler</button>
+          <button id="saveBtn" class="btn small">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

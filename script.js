@@ -1,8 +1,8 @@
 // ===========================
-// VinylRoll - script.js (v7.1)
+// VinylRoll - script.js (v8)
 // ===========================
 
-const STORAGE_KEY = "vinylroll_v71";
+const STORAGE_KEY = "vinylroll_v8";
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
@@ -18,8 +18,12 @@ const controlsBar = $("#controls");
 const artistsList = $("#artistsList");
 const fetchAllBtn = $("#fetchAllBtn");
 
-// Edit dialog
-const editDialog = $("#editDialog");
+// Modale custom
+const modal = $("#editModal");
+const modalBackdrop = modal.querySelector(".modal-backdrop");
+const cancelBtn = $("#cancelBtn");
+
+// Champs édition
 const editArtist = $("#editArtist");
 const editAlbum = $("#editAlbum");
 const editYear = $("#editYear");
@@ -29,6 +33,7 @@ const editLimitedWrap = $("#editLimitedWrap");
 const editLimitedDetail = $("#editLimitedDetail");
 const editComment = $("#editComment");
 const editCoverBtn = $("#editCoverBtn");
+const genCoverBtn = $("#genCoverBtn");
 const deleteBtn = $("#deleteBtn");
 const saveBtn = $("#saveBtn");
 
@@ -36,10 +41,10 @@ let editingId = null;
 
 const state = {
   items: [],
-  tab: "library",      // library | add | wishlist | preorder | random
+  tab: "library",
   search: "",
-  sortBy: "artist",    // artist | album | year | state | type
-  sortDir: "asc"       // asc | desc
+  sortBy: "artist",
+  sortDir: "asc"
 };
 
 // -------- Persistence --------
@@ -82,8 +87,7 @@ $("#addBtn").onclick = async () => {
 
   const it = {
     id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-    artist,
-    album,
+    artist, album,
     year: Number.isFinite(year) ? year : null,
     type,
     limitedDetail: type === "limited" ? (limitedDetail || null) : null,
@@ -93,10 +97,13 @@ $("#addBtn").onclick = async () => {
   };
 
   state.items.unshift(it);
-  save();
-  populateArtistsDatalist();
+  save(); populateArtistsDatalist();
 
-  try { await fetchCover(it.id); } catch {}
+  // tenter fetch cover, sinon générer un placeholder
+  try {
+    const ok = await fetchCover(it.id);
+    if (!ok) await generateAndStorePlaceholder(it.id);
+  } catch { await generateAndStorePlaceholder(it.id); }
 
   // reset
   $("#artist").value = ""; $("#album").value = ""; $("#year").value = "";
@@ -148,27 +155,25 @@ $("#importFile").onchange = async (e) => {
     const cleaned = arr.map(x => {
       const artist = normalizeText(x.artist);
       const album  = normalizeText(x.album);
-      if (!artist || !album) return null; // ignore vides / NaN
+      if (!artist || !album) return null; // ignore vides/NaN
       const type = normalizeText(x.type) === "limited" ? "limited" : "standard";
-      const state = normalizeState(x.state);
+      const stateVal = normalizeState(x.state);
       return {
         id: x.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
-        artist,
-        album,
+        artist, album,
         year: normalizeYear(x.year),
         type,
         limitedDetail: type === "limited" ? (normalizeText(x.limitedDetail) || null) : null,
-        state,
+        state: stateVal,
         comment: normalizeText(x.comment) || null,
         coverUrl: normalizeText(x.coverUrl) || null
       };
     }).filter(Boolean);
 
     state.items = cleaned;
-    save();
-    populateArtistsDatalist();
-    render();
+    save(); populateArtistsDatalist(); render();
 
+    // onglet pertinent
     const hasOwned = state.items.some(it => it.state === "owned");
     const hasWL = state.items.some(it => it.state === "wishlist");
     const hasPO = state.items.some(it => it.state === "preorder");
@@ -262,10 +267,15 @@ function renderCard(it) {
   `;
 }
 
-// -------- Editor dialog --------
+// -------- Modale custom (ouverture/fermeture) --------
+function openModal() { modal.classList.remove("hidden"); document.body.style.overflow = "hidden"; }
+function closeModal() { modal.classList.add("hidden"); document.body.style.overflow = ""; editingId = null; }
+modalBackdrop.addEventListener("click", closeModal);
+cancelBtn.addEventListener("click", closeModal);
+
+// -------- Editor --------
 window.openEditor = (id) => {
-  const it = getItem(id);
-  if (!it) return;
+  const it = getItem(id); if (!it) return;
   editingId = id;
   editArtist.value = it.artist;
   editAlbum.value = it.album;
@@ -275,7 +285,7 @@ window.openEditor = (id) => {
   editLimitedDetail.value = it.limitedDetail || "";
   editComment.value = it.comment || "";
   editLimitedWrap.style.display = it.type === "limited" ? "block" : "none";
-  editDialog.showModal();
+  openModal();
 };
 
 editType.onchange = () => {
@@ -294,8 +304,7 @@ deleteBtn.onclick = () => {
   if (!editingId) return;
   if (!confirm("Supprimer ce vinyle?")) return;
   state.items = state.items.filter(x => x.id !== editingId);
-  save(); populateArtistsDatalist(); render();
-  editDialog.close();
+  save(); populateArtistsDatalist(); render(); closeModal();
 };
 
 saveBtn.onclick = (e) => {
@@ -307,8 +316,7 @@ saveBtn.onclick = (e) => {
   const year = editYear.value.trim() ? parseInt(editYear.value.trim(), 10) : null;
 
   const patch = {
-    artist,
-    album,
+    artist, album,
     year: Number.isFinite(year) ? year : null,
     state: editState.value,
     type: editType.value,
@@ -317,10 +325,15 @@ saveBtn.onclick = (e) => {
   };
   updateItem(editingId, patch);
   populateArtistsDatalist();
-  editDialog.close();
+  closeModal();
 };
 
-editCoverBtn.onclick = async () => { if (editingId) { try { await fetchCover(editingId); } catch {} } };
+editCoverBtn.onclick = async () => {
+  if (!editingId) return;
+  const ok = await fetchCover(editingId);
+  if (!ok) await generateAndStorePlaceholder(editingId);
+};
+genCoverBtn.onclick = async () => { if (editingId) await generateAndStorePlaceholder(editingId); };
 
 // -------- Random --------
 $("#randomBtn").onclick = () => {
@@ -350,33 +363,80 @@ $("#randomBtn").onclick = () => {
   `;
 };
 
-// -------- Covers --------
+// -------- Covers: iTunes, sinon placeholder --------
 async function fetchCover(id) {
   const it = getItem(id);
-  if (!it) return;
+  if (!it) return false;
   const url = new URL("https://itunes.apple.com/search");
   url.searchParams.set("term", `${it.artist} ${it.album}`);
   url.searchParams.set("entity", "album");
   url.searchParams.set("limit", "1");
   try {
     const res = await fetch(url.toString());
-    if (!res.ok) return;
+    if (!res.ok) return false;
     const data = await res.json();
-    if (!data.results || data.results.length === 0) return;
+    if (!data.results || data.results.length === 0) return false;
     let art = data.results[0].artworkUrl100;
     if (art) art = art.replace("100x100bb.jpg", "512x512bb.jpg").replace("100x100bb.png", "512x512bb.png");
     updateItem(id, { coverUrl: art || null });
-  } catch { /* silence */ }
+    return !!art;
+  } catch { return false; }
 }
 
-// Chercher toutes les jaquettes
+// Placeholder canvas basé sur artiste/album
+function hashStr(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function hsl(n) { return `hsl(${n % 360} 70% 45%)`; }
+
+async function generateAndStorePlaceholder(id, size = 512) {
+  const it = getItem(id); if (!it) return;
+  const text = `${it.artist} — ${it.album}`;
+  const h = hashStr(text);
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const ctx = c.getContext("2d");
+
+  // fond dégradé
+  const g = ctx.createLinearGradient(0, 0, size, size);
+  g.addColorStop(0, hsl(h % 360));
+  g.addColorStop(1, hsl((h >> 8) % 360));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+
+  // disque
+  const cx = size/2, cy = size/2, r = size*0.42;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fill();
+  // sillons
+  ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 2;
+  for (let i=1;i<=6;i++){ ctx.beginPath(); ctx.arc(cx, cy, r - i*8, 0, Math.PI*2); ctx.stroke(); }
+  // label
+  ctx.beginPath(); ctx.arc(cx, cy, size*0.16, 0, Math.PI*2); ctx.fillStyle = "#fafafa"; ctx.fill();
+  // trou
+  ctx.beginPath(); ctx.arc(cx, cy, size*0.02, 0, Math.PI*2); ctx.fillStyle = "#111"; ctx.fill();
+  // texte centré (initiales)
+  ctx.fillStyle = "#111";
+  ctx.font = `bold ${Math.floor(size*0.10)}px -apple-system,system-ui,Segoe UI,sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const initials = (it.artist.split(/\s+/).slice(0,2).map(s=>s[0]).join("") + "/" + (it.album.split(/\s+/).slice(0,2).map(s=>s[0]).join(""))).toUpperCase();
+  ctx.fillText(initials, cx, cy);
+
+  const url = c.toDataURL("image/png");
+  updateItem(id, { coverUrl: url });
+}
+
+// Chercher toutes les jaquettes (avec fallback)
 fetchAllBtn.onclick = async () => {
   const missing = state.items.filter(x => !x.coverUrl);
   if (missing.length === 0) { alert("Toutes les jaquettes sont déjà présentes."); return; }
-  const ok = confirm(`Chercher les jaquettes manquantes pour ${missing.length} vinyle(s)?`);
+  const ok = confirm(`Chercher/générer les jaquettes manquantes pour ${missing.length} vinyle(s)?`);
   if (!ok) return;
-  for (const it of missing) { try { await fetchCover(it.id); } catch {} }
-  alert("Recherche terminée.");
+  for (const it of missing) {
+    const found = await fetchCover(it.id);
+    if (!found) await generateAndStorePlaceholder(it.id);
+  }
+  alert("Jaquettes complétées.");
 };
 
 // -------- Datalist artistes --------
@@ -399,4 +459,4 @@ if ("serviceWorker" in navigator) {
 load();
 populateArtistsDatalist();
 render();
-setTab("library"); // <- force l’onglet Library au démarrage
+setTab("library");
