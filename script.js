@@ -1,12 +1,12 @@
 // ===========================
-// VinylRoll - script.js (v4)
+// VinylRoll - script.js (v6)
 // ===========================
 
-const STORAGE_KEY = "vinylroll_v4"; // bump pour forcer refresh
+const STORAGE_KEY = "vinylroll_v6";
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-// UI elements
+// UI
 const tabs = $$(".tab");
 const search = $("#search");
 const sortByEl = $("#sortBy");
@@ -18,46 +18,57 @@ const controlsBar = $("#controls");
 const artistsList = $("#artistsList");
 const fetchAllBtn = $("#fetchAllBtn");
 
+// Edit dialog
+const editDialog = $("#editDialog");
+const editArtist = $("#editArtist");
+const editAlbum = $("#editAlbum");
+const editYear = $("#editYear");
+const editState = $("#editState");
+const editType = $("#editType");
+const editLimitedWrap = $("#editLimitedWrap");
+const editLimitedDetail = $("#editLimitedDetail");
+const editComment = $("#editComment");
+const editCoverBtn = $("#editCoverBtn");
+const deleteBtn = $("#deleteBtn");
+const saveBtn = $("#saveBtn");
+
+let editingId = null;
+
 const state = {
   items: [],
-  tab: "library",
+  tab: "library",      // library | add | wishlist | preorder | random
   search: "",
-  sortBy: "artist",   // artist | album | year | state | type
-  sortDir: "asc"      // asc | desc
+  sortBy: "artist",    // artist | album | year | state | type
+  sortDir: "asc"       // asc | desc
 };
 
-// ---------- Persistence ----------
+// -------- Persistence --------
 function load() {
   try { state.items = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
   catch { state.items = []; }
 }
-function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
-}
-function getItem(id) {
-  return state.items.find(x => x.id === id);
-}
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items)); }
+function getItem(id) { return state.items.find(x => x.id === id); }
 function updateItem(id, patch) {
   const idx = state.items.findIndex(x => x.id === id);
   if (idx === -1) return;
   state.items[idx] = { ...state.items[idx], ...patch };
-  save();
-  render();
+  save(); render();
 }
 
-// ---------- Tabs ----------
+// -------- Tabs --------
 function setTab(id) {
   state.tab = id;
   tabs.forEach(b => b.classList.toggle("active", b.dataset.tab === id));
   addSection.classList.toggle("hidden", id !== "add");
   randomSection.classList.toggle("hidden", id !== "random");
-  // cacher la barre de recherche/tri dans Ajouter et Random
+  // cacher la barre recherche/tri seulement dans Ajouter et Random
   controlsBar.classList.toggle("hidden", id === "add" || id === "random");
   render();
 }
 tabs.forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
 
-// ---------- Add item ----------
+// -------- Add item --------
 $("#addBtn").onclick = async () => {
   const artist = $("#artist").value.trim();
   const album = $("#album").value.trim();
@@ -84,24 +95,19 @@ $("#addBtn").onclick = async () => {
 
   state.items.unshift(it);
   save();
-
   populateArtistsDatalist();
 
   try { await fetchCover(it.id); } catch {}
 
   // reset
-  $("#artist").value = "";
-  $("#album").value = "";
-  $("#year").value = "";
-  $("#limitedDetail").value = "";
-  $("#comment").value = "";
-  $("#type").value = "standard";
-  $("#state").value = "owned";
+  $("#artist").value = ""; $("#album").value = ""; $("#year").value = "";
+  $("#limitedDetail").value = ""; $("#comment").value = "";
+  $("#type").value = "standard"; $("#state").value = "owned";
 
-  setTab(stateSel === "wishlist" ? "wishlist" : "library");
+  setTab(stateSel === "wishlist" ? "wishlist" : (stateSel === "preorder" ? "preorder" : "library"));
 };
 
-// ---------- Export / Import / Wipe ----------
+// -------- Export / Import / Wipe --------
 $("#exportBtn").onclick = () => {
   const blob = new Blob([JSON.stringify(state.items, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -110,6 +116,18 @@ $("#exportBtn").onclick = () => {
   URL.revokeObjectURL(url);
 };
 
+// anti-NaN helpers
+function normalizeText(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "number" && !Number.isFinite(v)) return "";
+  const s = String(v).trim();
+  return s.toLowerCase() === "nan" ? "" : s;
+}
+function normalizeYear(v) {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
 $("#importFile").onchange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -117,17 +135,26 @@ $("#importFile").onchange = async (e) => {
     const text = await file.text();
     const arr = JSON.parse(text);
     if (!Array.isArray(arr)) throw new Error("Format invalide");
-    state.items = arr.map(x => ({
-      id: x.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
-      artist: String(x.artist || "").trim(),
-      album: String(x.album || "").trim(),
-      year: Number.isFinite(x.year) ? x.year : (x.year === null ? null : null),
-      type: x.type === "limited" ? "limited" : "standard",
-      limitedDetail: x.type === "limited" ? (x.limitedDetail ? String(x.limitedDetail) : null) : null,
-      state: ["owned","preorder","wishlist"].includes(x.state) ? x.state : "owned",
-      comment: x.comment ? String(x.comment) : null,
-      coverUrl: x.coverUrl || null
-    })).filter(x => x.artist && x.album);
+
+    const cleaned = arr.map(x => {
+      const artist = normalizeText(x.artist);
+      const album  = normalizeText(x.album);
+      if (!artist || !album) return null; // ignore lignes vides ou NaN
+      const type = x.type === "limited" ? "limited" : "standard";
+      return {
+        id: x.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+        artist,
+        album,
+        year: normalizeYear(x.year),
+        type,
+        limitedDetail: type === "limited" ? (normalizeText(x.limitedDetail) || null) : null,
+        state: ["owned","preorder","wishlist"].includes(x.state) ? x.state : "owned",
+        comment: normalizeText(x.comment) || null,
+        coverUrl: normalizeText(x.coverUrl) || null
+      };
+    }).filter(Boolean);
+
+    state.items = cleaned;
     save();
     populateArtistsDatalist();
     render();
@@ -145,7 +172,7 @@ $("#wipeBtn").onclick = () => {
   }
 };
 
-// ---------- Search + Sort ----------
+// -------- Search + Sort --------
 search.oninput = () => { state.search = search.value.toLowerCase(); render(); };
 sortByEl.onchange = () => { state.sortBy = sortByEl.value; render(); };
 sortDirEl.onchange = () => { state.sortDir = sortDirEl.value; render(); };
@@ -153,10 +180,8 @@ sortDirEl.onchange = () => { state.sortDir = sortDirEl.value; render(); };
 function compare(a, b, by) {
   const dir = state.sortDir === "asc" ? 1 : -1;
   const S = s => (s ?? "").toString().toLowerCase();
-
   if (by === "year") {
-    const ay = a.year ?? -Infinity;
-    const byy = b.year ?? -Infinity;
+    const ay = a.year ?? -Infinity, byy = b.year ?? -Infinity;
     if (ay === byy) return (S(a.artist).localeCompare(S(b.artist))) * dir;
     return (ay < byy ? -1 : 1) * dir;
   }
@@ -167,16 +192,16 @@ function compare(a, b, by) {
   return 0;
 }
 
-// ---------- Render ----------
+// -------- Render --------
 function render() {
-  // sync selects
   sortByEl.value = state.sortBy;
   sortDirEl.value = state.sortDir;
 
   const q = state.search.trim().toLowerCase();
   let items = state.items.filter(it => {
-    if (state.tab === "library" && it.state !== "owned") return false;
+    if (state.tab === "library"  && it.state !== "owned")    return false;
     if (state.tab === "wishlist" && it.state !== "wishlist") return false;
+    if (state.tab === "preorder" && it.state !== "preorder") return false;
     if (!q) return true;
     return it.artist.toLowerCase().includes(q)
         || it.album.toLowerCase().includes(q)
@@ -186,30 +211,29 @@ function render() {
 
   items.sort((a, b) => compare(a, b, state.sortBy));
 
-  listEl.innerHTML = (state.tab === "library" || state.tab === "wishlist")
+  listEl.innerHTML = (state.tab === "library" || state.tab === "wishlist" || state.tab === "preorder")
     ? items.map(renderCard).join("")
     : "";
 
   if (state.tab === "random") {
     const owned = state.items.filter(x => x.state === "owned");
     if (owned.length === 0) {
-      $("#pick").innerHTML = `<span class="muted">Ajoute au moins un vinyle en « owned » pour brasser la roulette.</span>`;
+      $("#pick").innerHTML = `<span class="muted">Ajoute au moins un vinyle possédé pour brasser la roulette.</span>`;
     }
   }
 }
 
-// Présentation compacte + édition cachée
 function renderCard(it) {
   const editionLine = it.type === "limited"
     ? `Édition limitée${it.limitedDetail ? ": " + escapeHtml(it.limitedDetail) : ""}`
     : `Standard`;
 
   const cover = it.coverUrl
-    ? `<img class="cover" src="${escapeAttr(it.coverUrl)}" alt="Cover ${escapeAttr(it.album)}" loading="lazy" onclick="toggleControls('${it.id}')">`
-    : `<div class="cover" aria-label="Sans cover" onclick="toggleControls('${it.id}')"></div>`;
+    ? `<img class="cover" src="${escapeAttr(it.coverUrl)}" alt="Cover ${escapeAttr(it.album)}">`
+    : `<div class="cover" aria-label="Sans cover"></div>`;
 
   return `
-    <div class="card" data-id="${it.id}">
+    <div class="card" data-id="${it.id}" onclick="openEditor('${it.id}')">
       <div class="item">
         ${cover}
         <div class="meta">
@@ -218,64 +242,71 @@ function renderCard(it) {
           <div class="row-bottom ${it.comment ? "" : "hidden"}">${escapeHtml(it.comment || "")}</div>
         </div>
       </div>
-
-      <div id="controls-${it.id}" class="controls-line">
-        <select class="small" onchange="updateState('${it.id}', this.value)">
-          <option value="owned"${it.state === "owned" ? " selected" : ""}>owned</option>
-          <option value="preorder"${it.state === "preorder" ? " selected" : ""}>preorder</option>
-          <option value="wishlist"${it.state === "wishlist" ? " selected" : ""}>wishlist</option>
-        </select>
-
-        <select class="small" onchange="updateType('${it.id}', this.value)">
-          <option value="standard"${it.type === "standard" ? " selected" : ""}>standard</option>
-          <option value="limited"${it.type === "limited" ? " selected" : ""}>limited</option>
-        </select>
-
-        <input class="small ${it.type === 'limited' ? '' : 'hidden'}" id="limited-${it.id}" placeholder="Détail limité"
-               value="${escapeAttr(it.limitedDetail || "")}" onblur="updateLimitedDetail('${it.id}', this.value)">
-
-        <button class="btn ghost small" onclick="fetchCover('${it.id}')">Chercher jaquette</button>
-        <button class="btn danger small" onclick="removeItem('${it.id}')">Supprimer</button>
-      </div>
     </div>
   `;
 }
 
-// Toggle affichage des contrôles en cliquant sur la cover
-window.toggleControls = (id) => {
-  const el = document.getElementById(`controls-${id}`);
-  if (!el) return;
-  el.classList.toggle("show");
-};
-
-// Actions
-window.removeItem = (id) => {
-  if (!confirm("Supprimer ce vinyle?")) return;
-  state.items = state.items.filter(x => x.id !== id);
-  save(); populateArtistsDatalist(); render();
-};
-
-window.updateState = (id, v) => updateItem(id, { state: v });
-
-window.updateType = (id, v) => {
+// -------- Editor dialog --------
+window.openEditor = (id) => {
   const it = getItem(id);
   if (!it) return;
-  // Alerte si limited -> standard
-  if (it.type === "limited" && v === "standard") {
-    const ok = confirm("Passer de « édition limitée » à « standard » va retirer le détail limité. Continuer?");
-    if (!ok) { render(); return; }
-  }
-  const patch = { type: v };
-  if (v === "standard") patch.limitedDetail = null;
-  updateItem(id, patch);
-  // montrer/cacher l'input détail en live
-  const input = document.getElementById(`limited-${id}`);
-  if (input) input.classList.toggle("hidden", v !== "limited");
+  editingId = id;
+  editArtist.value = it.artist;
+  editAlbum.value = it.album;
+  editYear.value = it.year ?? "";
+  editState.value = it.state;
+  editType.value = it.type;
+  editLimitedDetail.value = it.limitedDetail || "";
+  editComment.value = it.comment || "";
+  editLimitedWrap.style.display = it.type === "limited" ? "block" : "none";
+  editDialog.showModal();
 };
 
-window.updateLimitedDetail = (id, v) => updateItem(id, { limitedDetail: v || null });
+editType.onchange = () => {
+  if (editType.value === "standard") {
+    const wasLimited = getItem(editingId)?.type === "limited";
+    if (wasLimited) {
+      const ok = confirm("Passer de « édition limitée » à « standard » va retirer le détail limité. Continuer?");
+      if (!ok) { editType.value = "limited"; return; }
+      editLimitedDetail.value = "";
+    }
+  }
+  editLimitedWrap.style.display = editType.value === "limited" ? "block" : "none";
+};
 
-// ---------- Random ----------
+deleteBtn.onclick = () => {
+  if (!editingId) return;
+  if (!confirm("Supprimer ce vinyle?")) return;
+  state.items = state.items.filter(x => x.id !== editingId);
+  save(); populateArtistsDatalist(); render();
+  editDialog.close();
+};
+
+saveBtn.onclick = (e) => {
+  e.preventDefault();
+  if (!editingId) return;
+  const artist = editArtist.value.trim();
+  const album  = editAlbum.value.trim();
+  if (!artist || !album) { alert("Artiste et album, c’est pas optionnel."); return; }
+  const year = editYear.value.trim() ? parseInt(editYear.value.trim(), 10) : null;
+
+  const patch = {
+    artist,
+    album,
+    year: Number.isFinite(year) ? year : null,
+    state: editState.value,
+    type: editType.value,
+    limitedDetail: editType.value === "limited" ? (editLimitedDetail.value.trim() || null) : null,
+    comment: editComment.value.trim() || null
+  };
+  updateItem(editingId, patch);
+  populateArtistsDatalist();
+  editDialog.close();
+};
+
+editCoverBtn.onclick = async () => { if (editingId) { try { await fetchCover(editingId); } catch {} } };
+
+// -------- Random --------
 $("#randomBtn").onclick = () => {
   const owned = state.items.filter(it => it.state === "owned");
   if (owned.length === 0) {
@@ -303,7 +334,7 @@ $("#randomBtn").onclick = () => {
   `;
 };
 
-// ---------- Covers ----------
+// -------- Covers --------
 async function fetchCover(id) {
   const it = getItem(id);
   if (!it) return;
@@ -314,62 +345,41 @@ async function fetchCover(id) {
 
   try {
     const res = await fetch(url.toString());
-    if (!res.ok) throw new Error("fetch failed");
+    if (!res.ok) return;
     const data = await res.json();
-    if (!data.results || data.results.length === 0) {
-      alert(`Aucune jaquette trouvée pour "${it.artist} — ${it.album}".`);
-      return;
-    }
+    if (!data.results || data.results.length === 0) return;
     let art = data.results[0].artworkUrl100;
     if (art) art = art.replace("100x100bb.jpg", "512x512bb.jpg").replace("100x100bb.png", "512x512bb.png");
     updateItem(id, { coverUrl: art || null });
   } catch {
-    alert("Impossible de récupérer la jaquette pour le moment.");
+    // silence demandé
   }
 }
 
-// Bouton pour chercher toutes les jaquettes
+// Chercher toutes les jaquettes (silencieux si échec)
 fetchAllBtn.onclick = async () => {
   const missing = state.items.filter(x => !x.coverUrl);
-  if (missing.length === 0) { alert("Toutes les jaquettes sont déjà présentes. Bravo, maniaque."); return; }
-
-  let ok = confirm(`Chercher les jaquettes manquantes pour ${missing.length} vinyle(s)?`);
+  if (missing.length === 0) { alert("Toutes les jaquettes sont déjà présentes."); return; }
+  const ok = confirm(`Chercher les jaquettes manquantes pour ${missing.length} vinyle(s)?`);
   if (!ok) return;
-
-  // boucle simple, une par une
-  for (const it of missing) {
-    // eslint désactivé dans mon coeur
-    // petite pause entre requêtes pour être poli
-    // pas de await delay ici, fetch enchaîné c'est correct pour ce cas simple
-    try { // eslint-ignore
-      // eslint-ignore
-      // eslint-ignore
-      await fetchCover(it.id);
-    } catch {}
-  }
-  alert("Recherche des jaquettes terminée.");
+  for (const it of missing) { try { await fetchCover(it.id); } catch {} }
+  alert("Recherche terminée.");
 };
 
-// ---------- Artists datalist ----------
+// -------- Datalist artistes --------
 function populateArtistsDatalist() {
   const names = Array.from(new Set(state.items.map(x => x.artist).filter(Boolean)))
     .sort((a,b) => a.localeCompare(b));
   artistsList.innerHTML = names.map(n => `<option value="${escapeAttr(n)}"></option>`).join("");
 }
 
-// ---------- Utils ----------
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function escapeAttr(s) {
-  return String(s).replace(/"/g, "&quot;");
-}
+// -------- Utils --------
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
 
-// ---------- Service Worker ----------
+// -------- SW --------
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  });
+  window.addEventListener("load", () => { navigator.serviceWorker.register("./sw.js").catch(() => {}); });
 }
 
 // boot

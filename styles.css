@@ -1,19 +1,9 @@
 :root { color-scheme: dark; }
 
-body {
-  margin: 0;
-  font-family: -apple-system, system-ui, sans-serif;
-  background: #000;
-  color: #fff;
-}
-
+body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: #000; color: #fff; }
 .wrap { max-width: 900px; margin: 0 auto; padding: 12px; }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.header { display: flex; justify-content: space-between; align-items: center; }
 .header-actions { display: flex; gap: 8px; }
 
 h1 { font-size: 22px; margin: 8px 0 12px; }
@@ -25,14 +15,7 @@ h1 { font-size: 22px; margin: 8px 0 12px; }
 #controls { display: grid; gap: 8px; margin-bottom: 10px; }
 .sorts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
-input, select, textarea {
-  width: 100%;
-  background: #1a1a1a;
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
-  padding: 10px;
-}
+input, select, textarea { width: 100%; background: #1a1a1a; color: #fff; border: 0; border-radius: 8px; padding: 10px; }
 
 .btn { background: #7c3aed; color: #fff; border: 0; border-radius: 10px; padding: 12px; font-weight: 700; text-align: center; }
 .btn.secondary { background: #0d47a1; }
@@ -48,42 +31,21 @@ input, select, textarea {
 .toolbar { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .hidden { display: none; }
 
-/* Présentation liste */
-.item {
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 12px;
-}
-.cover {
-  width: 90px; height: 90px; border-radius: 8px; object-fit: cover; background: #222; cursor: pointer;
-}
+.item { display: grid; grid-template-columns: 90px 1fr; gap: 12px; cursor: pointer; }
+.cover { width: 90px; height: 90px; border-radius: 8px; object-fit: cover; background: #222; }
 .meta { display: grid; grid-template-rows: auto auto auto; gap: 6px; }
 .row-top { font-weight: 700; }
 .row-mid { color: #aaa; }
 .row-bottom { margin-top: 6px; }
 
-.controls-line {
-  display: none;          /* masqué par défaut */
-  margin-top: 10px;
-  display: grid;
-  grid-template-columns: repeat(5, max-content);
-  gap: 8px;
-  align-items: center;
-}
-.controls-line.show { display: grid; }
+.random-wrap { display: grid; grid-template-columns: 110px 1fr; gap: 12px; align-items: center; }
+.random-cover { width: 110px; height: 110px; border-radius: 8px; object-fit: cover; background: #222; }
 
-.controls-line select, .controls-line input {
-  font-size: 12px; padding: 8px; background: #1a1a1a;
-  border-radius: 8px; border: 0; color: #fff;
-}
-
-/* Random pick presentation */
-.random-wrap {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 12px;
-  align-items: center;
-}
-.random-cover {
-  width: 110px; height: 110px; border-radius: 8px; object-fit: cover; background: #222;
-}
+dialog::backdrop { background: rgba(0,0,0,0.6); }
+#editDialog { border: 1px solid #333; border-radius: 12px; padding: 0; background: #0b0b0b; color: #fff; width: min(680px, 92vw); }
+.edit-form { padding: 16px; }
+.edit-form h2 { margin: 0 0 12px; font-size: 18px; }
+.edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.edit-grid .full { grid-column: 1 / -1; }
+.dialog-actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.dialog-actions .spacer { flex: 1; }

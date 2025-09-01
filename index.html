@@ -18,13 +18,14 @@
     </header>
 
     <div class="tabs">
-      <button class="tab active" data-tab="library">Bibliothèque</button>
-      <button class="tab" data-tab="add">Ajouter</button>
-      <button class="tab" data-tab="wishlist">Wishlist</button>
-      <button class="tab" data-tab="random">Random</button>
+      <button class="tab active" data-tab="library">💿 Bibliothèque</button>
+      <button class="tab" data-tab="add">➕ Ajouter</button>
+      <button class="tab" data-tab="wishlist">⭐ Wishlist</button>
+      <button class="tab" data-tab="preorder">⏳ Préco</button>
+      <button class="tab" data-tab="random">🔀 Random</button>
     </div>
 
-    <!-- Barre recherche + tri (cachée en Ajouter et Random) -->
+    <!-- Recherche + tri (cachés en Ajouter et Random) -->
     <div id="controls">
       <input id="search" placeholder="Recherche artiste, album, note...">
       <div class="sorts">
@@ -95,7 +96,7 @@
       </div>
     </div>
 
-    <!-- Liste (Bibliothèque / Wishlist) -->
+    <!-- Liste (Bibliothèque / Wishlist / Préco) -->
     <div id="list"></div>
 
     <!-- Onglet Random -->
@@ -104,6 +105,59 @@
       <div id="pick" class="card"></div>
     </div>
   </div>
+
+  <!-- Modale d'édition -->
+  <dialog id="editDialog">
+    <form method="dialog" class="edit-form">
+      <h2>Modifier le vinyle</h2>
+
+      <div class="edit-grid">
+        <div>
+          <label>Artiste</label>
+          <input id="editArtist" list="artistsList">
+        </div>
+        <div>
+          <label>Album</label>
+          <input id="editAlbum">
+        </div>
+        <div>
+          <label>Année</label>
+          <input id="editYear" inputmode="numeric" placeholder="1996">
+        </div>
+        <div>
+          <label>État</label>
+          <select id="editState">
+            <option value="owned">owned</option>
+            <option value="preorder">preorder</option>
+            <option value="wishlist">wishlist</option>
+          </select>
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="editType">
+            <option value="standard">standard</option>
+            <option value="limited">limited</option>
+          </select>
+        </div>
+        <div id="editLimitedWrap">
+          <label>Détail édition limitée</label>
+          <input id="editLimitedDetail" placeholder="Marble Red 180g #/500">
+        </div>
+        <div class="full">
+          <label>Commentaire</label>
+          <textarea id="editComment" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" id="editCoverBtn" class="btn ghost small">Chercher jaquette</button>
+        <button type="button" id="deleteBtn" class="btn danger small">Supprimer</button>
+        <div class="spacer"></div>
+        <button value="cancel" class="btn ghost small">Annuler</button>
+        <button id="saveBtn" value="default" class="btn small">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="script.js"></script>
 </body>

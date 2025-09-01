@@ -1,4 +1,4 @@
-const CACHE = "vinylroll-v4";
+const CACHE = "vinylroll-v6";
 const ASSETS = [
   "./",
   "./index.html",
