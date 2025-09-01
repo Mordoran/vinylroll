@@ -1,22 +1,40 @@
-/* Évite le zoom iOS dans la modale et force le layout vertical pleine largeur */
+/* ===== Modale d'édition — look "comme avant" avec tweaks iPhone ===== */
+
+/* Empêche le zoom iOS, mais garde un look normal */
 #editDialog input,
 #editDialog select,
 #editDialog textarea,
 #editDialog button {
-  font-size: 16px;      /* >=16px = pas de zoom Safari iOS */
+  font-size: 16px;   /* >=16px => iOS ne zoome pas */
   width: 100%;
 }
 
+/* Deux colonnes comme avant (PC / grand écran) */
 #editDialog .edit-grid {
   display: grid;
-  grid-template-columns: 1fr;  /* une seule colonne, tout empilé */
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
+/* Actions alignées sur une ligne (comme avant) */
 #editDialog .dialog-actions {
-  display: grid;
-  grid-template-columns: 1fr;  /* chaque bouton prend toute la largeur */
+  display: flex;
   gap: 8px;
+  align-items: center;
+  margin-top: 12px;
 }
+#editDialog .dialog-actions .spacer { flex: 1; }
 
-#editDialog .dialog-actions .spacer { display: none; } /* plus de flex espace */
+/* Sur petit écran (iPhone), on empile pour éviter le squash,
+   mais on garde le style propre */
+@media (max-width: 520px) {
+  #editDialog .edit-grid {
+    grid-template-columns: 1fr;   /* 1 colonne sur petit écran */
+  }
+  #editDialog .dialog-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  #editDialog .dialog-actions .spacer { display: none; }
+}
