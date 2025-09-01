@@ -1,10 +1,9 @@
 // ===========================
-// VinylRoll - script.js (v8)
+// VinylRoll - script.js (v9)
 // ===========================
-
-const STORAGE_KEY = "vinylroll_v8";
-const $ = sel => document.querySelector(sel);
-const $$ = sel => document.querySelectorAll(sel);
+const STORAGE_KEY = "vinylroll_v9";
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
 
 // UI
 const tabs = $$(".tab");
@@ -18,10 +17,10 @@ const controlsBar = $("#controls");
 const artistsList = $("#artistsList");
 const fetchAllBtn = $("#fetchAllBtn");
 
-// Modale custom
+// Modale + toast
 const modal = $("#editModal");
 const modalBackdrop = modal.querySelector(".modal-backdrop");
-const cancelBtn = $("#cancelBtn");
+const toast = $("#toast");
 
 // Champs édition
 const editArtist = $("#editArtist");
@@ -32,9 +31,12 @@ const editType = $("#editType");
 const editLimitedWrap = $("#editLimitedWrap");
 const editLimitedDetail = $("#editLimitedDetail");
 const editComment = $("#editComment");
-const editCoverBtn = $("#editCoverBtn");
-const genCoverBtn = $("#genCoverBtn");
+
+// Émoji actions
+const searchBtn = $("#searchBtn");
+const generateBtn = $("#generateBtn");
 const deleteBtn = $("#deleteBtn");
+const cancelBtn = $("#cancelBtn");
 const saveBtn = $("#saveBtn");
 
 let editingId = null;
@@ -47,11 +49,17 @@ const state = {
   sortDir: "asc"
 };
 
-// -------- Persistence --------
-function load() {
-  try { state.items = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
-  catch { state.items = []; }
+// -------- Toast util --------
+let toastTimer = null;
+function showToast(msg, ms = 1800) {
+  toast.textContent = msg;
+  toast.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add("hidden"), ms);
 }
+
+// -------- Persistence --------
+function load() { try { state.items = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { state.items = []; } }
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items)); }
 function getItem(id) { return state.items.find(x => x.id === id); }
 function updateItem(id, patch) {
@@ -99,7 +107,6 @@ $("#addBtn").onclick = async () => {
   state.items.unshift(it);
   save(); populateArtistsDatalist();
 
-  // tenter fetch cover, sinon générer un placeholder
   try {
     const ok = await fetchCover(it.id);
     if (!ok) await generateAndStorePlaceholder(it.id);
@@ -122,17 +129,13 @@ $("#exportBtn").onclick = () => {
   URL.revokeObjectURL(url);
 };
 
-// anti-NaN helpers
 function normalizeText(v) {
   if (v === null || v === undefined) return "";
   if (typeof v === "number" && !Number.isFinite(v)) return "";
   const s = String(v).trim();
   return s.toLowerCase() === "nan" ? "" : s;
 }
-function normalizeYear(v) {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : null;
-}
+function normalizeYear(v) { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; }
 function normalizeState(v) {
   const s = normalizeText(v).toLowerCase();
   const preorderAliases = ["preorder","précommande","precommande","pre-order","pre order","pre-commande"];
@@ -155,7 +158,7 @@ $("#importFile").onchange = async (e) => {
     const cleaned = arr.map(x => {
       const artist = normalizeText(x.artist);
       const album  = normalizeText(x.album);
-      if (!artist || !album) return null; // ignore vides/NaN
+      if (!artist || !album) return null;
       const type = normalizeText(x.type) === "limited" ? "limited" : "standard";
       const stateVal = normalizeState(x.state);
       return {
@@ -173,7 +176,6 @@ $("#importFile").onchange = async (e) => {
     state.items = cleaned;
     save(); populateArtistsDatalist(); render();
 
-    // onglet pertinent
     const hasOwned = state.items.some(it => it.state === "owned");
     const hasWL = state.items.some(it => it.state === "wishlist");
     const hasPO = state.items.some(it => it.state === "preorder");
@@ -182,9 +184,7 @@ $("#importFile").onchange = async (e) => {
     else setTab("library");
   } catch {
     alert("Fichier invalide.");
-  } finally {
-    e.target.value = "";
-  }
+  } finally { e.target.value = ""; }
 };
 
 $("#wipeBtn").onclick = () => {
@@ -267,13 +267,12 @@ function renderCard(it) {
   `;
 }
 
-// -------- Modale custom (ouverture/fermeture) --------
+// -------- Modale --------
 function openModal() { modal.classList.remove("hidden"); document.body.style.overflow = "hidden"; }
 function closeModal() { modal.classList.add("hidden"); document.body.style.overflow = ""; editingId = null; }
 modalBackdrop.addEventListener("click", closeModal);
 cancelBtn.addEventListener("click", closeModal);
 
-// -------- Editor --------
 window.openEditor = (id) => {
   const it = getItem(id); if (!it) return;
   editingId = id;
@@ -305,6 +304,7 @@ deleteBtn.onclick = () => {
   if (!confirm("Supprimer ce vinyle?")) return;
   state.items = state.items.filter(x => x.id !== editingId);
   save(); populateArtistsDatalist(); render(); closeModal();
+  showToast("Supprimé.");
 };
 
 saveBtn.onclick = (e) => {
@@ -325,15 +325,71 @@ saveBtn.onclick = (e) => {
   };
   updateItem(editingId, patch);
   populateArtistsDatalist();
-  closeModal();
+
+  closeModal();               // on ferme maintenant, tout de suite
+  showToast("Modifications enregistrées.");
 };
 
-editCoverBtn.onclick = async () => {
+// -------- COVERS --------
+async function fetchCover(id) {
+  const it = getItem(id);
+  if (!it) return false;
+  const url = new URL("https://itunes.apple.com/search");
+  url.searchParams.set("term", `${it.artist} ${it.album}`);
+  url.searchParams.set("entity", "album");
+  url.searchParams.set("limit", "1");
+  try {
+    const res = await fetch(url.toString());
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data.results || data.results.length === 0) return false;
+    let art = data.results[0].artworkUrl100;
+    if (art) art = art.replace("100x100bb.jpg", "512x512bb.jpg").replace("100x100bb.png", "512x512bb.png");
+    updateItem(id, { coverUrl: art || null });
+    return !!art;
+  } catch { return false; }
+}
+
+function hashStr(s) { let h = 2166136261 >>> 0; for (let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619);} return h>>>0; }
+function hsl(n) { return `hsl(${n % 360} 70% 45%)`; }
+
+async function generateAndStorePlaceholder(id, size = 512) {
+  const it = getItem(id); if (!it) return false;
+  const text = `${it.artist} — ${it.album}`;
+  const h = hashStr(text);
+  const c = document.createElement("canvas"); c.width = c.height = size;
+  const ctx = c.getContext("2d");
+  const g = ctx.createLinearGradient(0,0,size,size);
+  g.addColorStop(0, hsl(h%360)); g.addColorStop(1, hsl((h>>8)%360));
+  ctx.fillStyle = g; ctx.fillRect(0,0,size,size);
+  const cx=size/2, cy=size/2, r=size*0.42;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle="rgba(0,0,0,0.85)"; ctx.fill();
+  ctx.strokeStyle="rgba(255,255,255,0.05)"; ctx.lineWidth=2;
+  for(let i=1;i<=6;i++){ ctx.beginPath(); ctx.arc(cx,cy,r-i*8,0,Math.PI*2); ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(cx,cy,size*0.16,0,Math.PI*2); ctx.fillStyle="#fafafa"; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,size*0.02,0,Math.PI*2); ctx.fillStyle="#111"; ctx.fill();
+  ctx.fillStyle="#111";
+  ctx.font=`bold ${Math.floor(size*0.10)}px -apple-system,system-ui,Segoe UI,sans-serif`;
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  const initials = (it.artist.split(/\s+/).slice(0,2).map(s=>s[0]).join("") + "/" + it.album.split(/\s+/).slice(0,2).map(s=>s[0]).join("")).toUpperCase();
+  ctx.fillText(initials, cx, cy);
+  const url = c.toDataURL("image/png");
+  updateItem(id, { coverUrl: url });
+  return true;
+}
+
+// Émoji actions
+searchBtn.onclick = async () => {
   if (!editingId) return;
   const ok = await fetchCover(editingId);
-  if (!ok) await generateAndStorePlaceholder(editingId);
+  showToast(ok ? "Jaquette trouvée." : "Aucune jaquette trouvée.");
 };
-genCoverBtn.onclick = async () => { if (editingId) await generateAndStorePlaceholder(editingId); };
+
+generateBtn.onclick = async () => {
+  if (!editingId) return;
+  await generateAndStorePlaceholder(editingId);
+  showToast("Jaquette générée.");
+};
 
 // -------- Random --------
 $("#randomBtn").onclick = () => {
@@ -363,94 +419,16 @@ $("#randomBtn").onclick = () => {
   `;
 };
 
-// -------- Covers: iTunes, sinon placeholder --------
-async function fetchCover(id) {
-  const it = getItem(id);
-  if (!it) return false;
-  const url = new URL("https://itunes.apple.com/search");
-  url.searchParams.set("term", `${it.artist} ${it.album}`);
-  url.searchParams.set("entity", "album");
-  url.searchParams.set("limit", "1");
-  try {
-    const res = await fetch(url.toString());
-    if (!res.ok) return false;
-    const data = await res.json();
-    if (!data.results || data.results.length === 0) return false;
-    let art = data.results[0].artworkUrl100;
-    if (art) art = art.replace("100x100bb.jpg", "512x512bb.jpg").replace("100x100bb.png", "512x512bb.png");
-    updateItem(id, { coverUrl: art || null });
-    return !!art;
-  } catch { return false; }
-}
-
-// Placeholder canvas basé sur artiste/album
-function hashStr(s) {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return h >>> 0;
-}
-function hsl(n) { return `hsl(${n % 360} 70% 45%)`; }
-
-async function generateAndStorePlaceholder(id, size = 512) {
-  const it = getItem(id); if (!it) return;
-  const text = `${it.artist} — ${it.album}`;
-  const h = hashStr(text);
-  const c = document.createElement("canvas");
-  c.width = c.height = size;
-  const ctx = c.getContext("2d");
-
-  // fond dégradé
-  const g = ctx.createLinearGradient(0, 0, size, size);
-  g.addColorStop(0, hsl(h % 360));
-  g.addColorStop(1, hsl((h >> 8) % 360));
-  ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
-
-  // disque
-  const cx = size/2, cy = size/2, r = size*0.42;
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fill();
-  // sillons
-  ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 2;
-  for (let i=1;i<=6;i++){ ctx.beginPath(); ctx.arc(cx, cy, r - i*8, 0, Math.PI*2); ctx.stroke(); }
-  // label
-  ctx.beginPath(); ctx.arc(cx, cy, size*0.16, 0, Math.PI*2); ctx.fillStyle = "#fafafa"; ctx.fill();
-  // trou
-  ctx.beginPath(); ctx.arc(cx, cy, size*0.02, 0, Math.PI*2); ctx.fillStyle = "#111"; ctx.fill();
-  // texte centré (initiales)
-  ctx.fillStyle = "#111";
-  ctx.font = `bold ${Math.floor(size*0.10)}px -apple-system,system-ui,Segoe UI,sans-serif`;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  const initials = (it.artist.split(/\s+/).slice(0,2).map(s=>s[0]).join("") + "/" + (it.album.split(/\s+/).slice(0,2).map(s=>s[0]).join(""))).toUpperCase();
-  ctx.fillText(initials, cx, cy);
-
-  const url = c.toDataURL("image/png");
-  updateItem(id, { coverUrl: url });
-}
-
-// Chercher toutes les jaquettes (avec fallback)
-fetchAllBtn.onclick = async () => {
-  const missing = state.items.filter(x => !x.coverUrl);
-  if (missing.length === 0) { alert("Toutes les jaquettes sont déjà présentes."); return; }
-  const ok = confirm(`Chercher/générer les jaquettes manquantes pour ${missing.length} vinyle(s)?`);
-  if (!ok) return;
-  for (const it of missing) {
-    const found = await fetchCover(it.id);
-    if (!found) await generateAndStorePlaceholder(it.id);
-  }
-  alert("Jaquettes complétées.");
-};
-
-// -------- Datalist artistes --------
+// -------- Datalist --------
 function populateArtistsDatalist() {
-  const names = Array.from(new Set(state.items.map(x => x.artist).filter(Boolean)))
-    .sort((a,b) => a.localeCompare(b));
+  const names = Array.from(new Set(state.items.map(x => x.artist).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
   artistsList.innerHTML = names.map(n => `<option value="${escapeAttr(n)}"></option>`).join("");
 }
 
-// -------- Utils --------
+// -------- Utils + SW --------
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
 
-// -------- SW --------
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => { navigator.serviceWorker.register("./sw.js").catch(() => {}); });
 }

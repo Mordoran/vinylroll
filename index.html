@@ -106,7 +106,7 @@
     </div>
   </div>
 
-  <!-- Modale custom (plus fiable que <dialog> sur iOS) -->
+  <!-- Modale custom -->
   <div id="editModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="editTitle">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
@@ -151,17 +151,20 @@
           </div>
         </div>
 
-        <div class="dialog-actions">
-          <button type="button" id="editCoverBtn" class="btn ghost small">Chercher jaquette</button>
-          <button type="button" id="genCoverBtn" class="btn ghost small">Générer une jaquette</button>
-          <button type="button" id="deleteBtn" class="btn danger small">Supprimer</button>
-          <div class="spacer"></div>
-          <button type="button" id="cancelBtn" class="btn ghost small">Annuler</button>
-          <button id="saveBtn" class="btn small">Enregistrer</button>
+        <!-- Émojis actions -->
+        <div class="emoji-actions" role="group" aria-label="Actions">
+          <button type="button" id="searchBtn" class="emoji-btn" title="Chercher jaquette" aria-label="Chercher jaquette">🔎</button>
+          <button type="button" id="generateBtn" class="emoji-btn" title="Générer une jaquette" aria-label="Générer une jaquette">🖼️</button>
+          <button type="button" id="deleteBtn" class="emoji-btn danger" title="Supprimer" aria-label="Supprimer">🗑️</button>
+          <button type="button" id="cancelBtn" class="emoji-btn" title="Annuler" aria-label="Annuler">✖️</button>
+          <button id="saveBtn" class="emoji-btn primary" title="Enregistrer" aria-label="Enregistrer">💾</button>
         </div>
       </form>
     </div>
   </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <script src="script.js"></script>
 </body>
