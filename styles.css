@@ -110,12 +110,6 @@ textarea {
   color: #aaa;
 }
 
-.toolbar {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-}
 .hidden {
   display: none !important;
 }
@@ -164,7 +158,32 @@ textarea {
   background: #222;
 }
 
-/* Modale custom */
+/* Toolbar émojis (onglet Ajouter) */
+.toolbar-emoji {
+  display: grid;
+  grid-template-columns: repeat(4, 56px);
+  gap: 10px;
+  margin-top: 12px;
+}
+.emoji-btn {
+  font-size: 22px;
+  line-height: 1;
+  padding: 12px 0;
+  border: 1px solid #333;
+  border-radius: 10px;
+  background: #1a1a1a;
+  color: #fff;
+  text-align: center;
+  width: 56px;
+}
+.emoji-btn.primary {
+  border-color: #7c3aed;
+}
+.emoji-btn.danger {
+  border-color: #b00020;
+}
+
+/* Modale */
 .modal {
   position: fixed;
   inset: 0;
@@ -205,30 +224,14 @@ textarea {
   grid-column: 1 / -1;
 }
 
-/* Actions en émojis */
 .emoji-actions {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   margin-top: 12px;
 }
-.emoji-btn {
-  font-size: 22px;
-  line-height: 1;
-  padding: 12px 0;
-  border: 1px solid #333;
-  border-radius: 10px;
-  background: #1a1a1a;
-  color: #fff;
-}
-.emoji-btn.primary {
-  border-color: #7c3aed;
-}
-.emoji-btn.danger {
-  border-color: #b00020;
-}
 
-/* Anti-zoom iOS uniquement dans la modale */
+/* Anti-zoom iOS */
 #editModal input,
 #editModal select,
 #editModal textarea,
@@ -262,5 +265,8 @@ textarea {
   }
   .emoji-actions {
     grid-template-columns: repeat(5, 1fr);
+  }
+  .toolbar-emoji {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
