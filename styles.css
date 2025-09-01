@@ -40,6 +40,17 @@ h1 {
   outline: 2px solid #555;
 }
 
+#controls {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.sorts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 input,
 select,
 textarea {
@@ -66,6 +77,9 @@ textarea {
 .btn.danger {
   background: #b00020;
 }
+.btn.ghost {
+  background: #1a1a1a;
+}
 
 .card {
   background: #111;
@@ -91,4 +105,31 @@ textarea {
 }
 .hidden {
   display: none;
+}
+
+/* Liste + covers */
+.item-row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+.cover {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #222;
+}
+.meta {
+  display: grid;
+  gap: 6px;
+}
+.controls {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+.small {
+  font-size: 12px;
 }

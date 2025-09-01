@@ -22,15 +22,40 @@
         <button class="tab" data-tab="random">Random</button>
       </div>
 
-      <input id="search" placeholder="Recherche artiste, album, note..." />
+      <!-- Contrôles de recherche + tri -->
+      <div id="controls">
+        <input id="search" placeholder="Recherche artiste, album, note..." />
+        <div class="sorts">
+          <label>
+            Trier par
+            <select id="sortBy">
+              <option value="artist">artiste</option>
+              <option value="album">album</option>
+              <option value="year">année</option>
+              <option value="state">état</option>
+              <option value="type">type</option>
+            </select>
+          </label>
+          <label>
+            Ordre
+            <select id="sortDir">
+              <option value="asc">asc</option>
+              <option value="desc">desc</option>
+            </select>
+          </label>
+        </div>
+      </div>
 
       <!-- Section ajout -->
       <div id="add" class="hidden">
         <div class="card">
           <label>Artiste</label>
-          <input id="artist" placeholder="Ex: Jean Leloup" />
+          <input id="artist" placeholder="Ex: Jean Leloup" list="artistsList" />
+          <datalist id="artistsList"></datalist>
+
           <label>Album</label>
           <input id="album" placeholder="Ex: Le Dôme" />
+
           <div class="row">
             <div>
               <label>Année</label>
@@ -44,20 +69,24 @@
               </select>
             </div>
           </div>
+
           <label>Détail édition limitée</label>
           <input id="limitedDetail" placeholder="Marble Red 180g #/500" />
+
           <label>État</label>
           <select id="state">
             <option value="owned">owned</option>
             <option value="preorder">preorder</option>
             <option value="wishlist">wishlist</option>
           </select>
+
           <label>Commentaire</label>
           <textarea
             id="comment"
             rows="2"
             placeholder="Copie clean, label XL"
           ></textarea>
+
           <div class="toolbar">
             <button id="addBtn" class="btn">Ajouter</button>
             <button id="exportBtn" class="btn secondary">Exporter JSON</button>

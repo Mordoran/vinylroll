@@ -1,4 +1,4 @@
-const CACHE = "vinylroll-v1";
+const CACHE = "vinylroll-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -12,7 +12,6 @@ const ASSETS = [
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
 });
-
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches
@@ -24,13 +23,11 @@ self.addEventListener("activate", (e) => {
       )
   );
 });
-
 self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
         return res;
       })
       .catch(() => caches.match(e.request))
