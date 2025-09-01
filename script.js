@@ -1,8 +1,8 @@
 // ===========================
-// VinylRoll - script.js (v6)
+// VinylRoll - script.js (v7)
 // ===========================
 
-const STORAGE_KEY = "vinylroll_v6";
+const STORAGE_KEY = "vinylroll_v7";
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
@@ -62,7 +62,6 @@ function setTab(id) {
   tabs.forEach(b => b.classList.toggle("active", b.dataset.tab === id));
   addSection.classList.toggle("hidden", id !== "add");
   randomSection.classList.toggle("hidden", id !== "random");
-  // cacher la barre recherche/tri seulement dans Ajouter et Random
   controlsBar.classList.toggle("hidden", id === "add" || id === "random");
   render();
 }
@@ -127,6 +126,17 @@ function normalizeYear(v) {
   const n = parseInt(v, 10);
   return Number.isFinite(n) ? n : null;
 }
+function normalizeState(v) {
+  const s = normalizeText(v).toLowerCase();
+  const preorderAliases = ["preorder", "précommande", "precommande", "pre-order", "pre order", "precommande", "pre-commande"];
+  const wishlistAliases = ["wishlist", "souhait", "liste de souhaits", "wish"];
+  const ownedAliases = ["owned", "acquis", "acheté", "achete", "own"];
+  if (preorderAliases.includes(s)) return "preorder";
+  if (wishlistAliases.includes(s)) return "wishlist";
+  if (ownedAliases.includes(s)) return "owned";
+  // si vide, laisse owned par défaut? Non: on choisit wishlist pour éviter de polluer ta bib
+  return s ? "owned" : "wishlist";
+}
 
 $("#importFile").onchange = async (e) => {
   const file = e.target.files[0];
@@ -139,8 +149,9 @@ $("#importFile").onchange = async (e) => {
     const cleaned = arr.map(x => {
       const artist = normalizeText(x.artist);
       const album  = normalizeText(x.album);
-      if (!artist || !album) return null; // ignore lignes vides ou NaN
-      const type = x.type === "limited" ? "limited" : "standard";
+      if (!artist || !album) return null; // ignore lignes vides / NaN
+      const type = normalizeText(x.type) === "limited" ? "limited" : "standard";
+      const state = normalizeState(x.state);
       return {
         id: x.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
         artist,
@@ -148,7 +159,7 @@ $("#importFile").onchange = async (e) => {
         year: normalizeYear(x.year),
         type,
         limitedDetail: type === "limited" ? (normalizeText(x.limitedDetail) || null) : null,
-        state: ["owned","preorder","wishlist"].includes(x.state) ? x.state : "owned",
+        state,
         comment: normalizeText(x.comment) || null,
         coverUrl: normalizeText(x.coverUrl) || null
       };
@@ -158,7 +169,14 @@ $("#importFile").onchange = async (e) => {
     save();
     populateArtistsDatalist();
     render();
-    alert("Import réussi.");
+
+    // bascule automatiquement sur l’onglet le plus pertinent si ta liste importée est 100 % d’un type
+    const hasOwned = state.items.some(it => it.state === "owned");
+    const hasWL = state.items.some(it => it.state === "wishlist");
+    const hasPO = state.items.some(it => it.state === "preorder");
+    if (!hasOwned && !hasWL && hasPO) setTab("preorder");
+    else if (!hasOwned && hasWL && !hasPO) setTab("wishlist");
+    else setTab("library");
   } catch {
     alert("Fichier invalide.");
   } finally {
@@ -356,7 +374,7 @@ async function fetchCover(id) {
   }
 }
 
-// Chercher toutes les jaquettes (silencieux si échec)
+// Chercher toutes les jaquettes
 fetchAllBtn.onclick = async () => {
   const missing = state.items.filter(x => !x.coverUrl);
   if (missing.length === 0) { alert("Toutes les jaquettes sont déjà présentes."); return; }
