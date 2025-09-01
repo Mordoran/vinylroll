@@ -1,8 +1,8 @@
 // ===========================
-// VinylRoll - script.js (v7)
+// VinylRoll - script.js (v7.1)
 // ===========================
 
-const STORAGE_KEY = "vinylroll_v7";
+const STORAGE_KEY = "vinylroll_v71";
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
@@ -128,13 +128,12 @@ function normalizeYear(v) {
 }
 function normalizeState(v) {
   const s = normalizeText(v).toLowerCase();
-  const preorderAliases = ["preorder", "précommande", "precommande", "pre-order", "pre order", "precommande", "pre-commande"];
-  const wishlistAliases = ["wishlist", "souhait", "liste de souhaits", "wish"];
-  const ownedAliases = ["owned", "acquis", "acheté", "achete", "own"];
+  const preorderAliases = ["preorder","précommande","precommande","pre-order","pre order","pre-commande"];
+  const wishlistAliases = ["wishlist","souhait","liste de souhaits","wish"];
+  const ownedAliases = ["owned","acquis","acheté","achete","own"];
   if (preorderAliases.includes(s)) return "preorder";
   if (wishlistAliases.includes(s)) return "wishlist";
   if (ownedAliases.includes(s)) return "owned";
-  // si vide, laisse owned par défaut? Non: on choisit wishlist pour éviter de polluer ta bib
   return s ? "owned" : "wishlist";
 }
 
@@ -149,7 +148,7 @@ $("#importFile").onchange = async (e) => {
     const cleaned = arr.map(x => {
       const artist = normalizeText(x.artist);
       const album  = normalizeText(x.album);
-      if (!artist || !album) return null; // ignore lignes vides / NaN
+      if (!artist || !album) return null; // ignore vides / NaN
       const type = normalizeText(x.type) === "limited" ? "limited" : "standard";
       const state = normalizeState(x.state);
       return {
@@ -170,7 +169,6 @@ $("#importFile").onchange = async (e) => {
     populateArtistsDatalist();
     render();
 
-    // bascule automatiquement sur l’onglet le plus pertinent si ta liste importée est 100 % d’un type
     const hasOwned = state.items.some(it => it.state === "owned");
     const hasWL = state.items.some(it => it.state === "wishlist");
     const hasPO = state.items.some(it => it.state === "preorder");
@@ -236,7 +234,7 @@ function render() {
   if (state.tab === "random") {
     const owned = state.items.filter(x => x.state === "owned");
     if (owned.length === 0) {
-      $("#pick").innerHTML = `<span class="muted">Ajoute au moins un vinyle possédé pour brasser la roulette.</span>`;
+      $("#pick").innerHTML = `<span class="muted">Ajoute au moins un vinyle en « owned » pour brasser la roulette.</span>`;
     }
   }
 }
@@ -360,7 +358,6 @@ async function fetchCover(id) {
   url.searchParams.set("term", `${it.artist} ${it.album}`);
   url.searchParams.set("entity", "album");
   url.searchParams.set("limit", "1");
-
   try {
     const res = await fetch(url.toString());
     if (!res.ok) return;
@@ -369,9 +366,7 @@ async function fetchCover(id) {
     let art = data.results[0].artworkUrl100;
     if (art) art = art.replace("100x100bb.jpg", "512x512bb.jpg").replace("100x100bb.png", "512x512bb.png");
     updateItem(id, { coverUrl: art || null });
-  } catch {
-    // silence demandé
-  }
+  } catch { /* silence */ }
 }
 
 // Chercher toutes les jaquettes
@@ -404,4 +399,4 @@ if ("serviceWorker" in navigator) {
 load();
 populateArtistsDatalist();
 render();
-setTab("library");
+setTab("library"); // <- force l’onglet Library au démarrage
